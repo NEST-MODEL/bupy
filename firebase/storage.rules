@@ -1,0 +1,20 @@
+rules_version = '2';
+
+// ВАЖНО: Cloud Storage for Firebase требует тариф Blaze (привязку карты), поэтому по умолчанию
+// Bupy Storage НЕ использует и этот файл НЕ подключён в firebase.json.
+// Он лежит готовым на случай, если вы осознанно решите включить Storage позже.
+// Пути: users/{uid}/pets/{petId}/... — доступ только владельцу, лимит 5 МБ, только изображения и PDF.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{uid}/pets/{petId}/{allPaths=**} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 5 * 1024 * 1024
+        && (request.resource.contentType.matches('image/(jpeg|png|webp)')
+            || request.resource.contentType == 'application/pdf');
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

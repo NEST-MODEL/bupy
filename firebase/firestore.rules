@@ -1,0 +1,92 @@
+rules_version = '2';
+
+// Bupy — Firestore Security Rules.
+// Модель: все данные живут под users/{uid}/... и доступны ТОЛЬКО владельцу (request.auth.uid == uid).
+// Всё остальное запрещено по умолчанию.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    function str(v, minLen, maxLen) { return v is string && v.size() >= minLen && v.size() <= maxLen; }
+    // Необязательное строковое поле: либо отсутствует, либо строка не длиннее maxLen.
+    function optStr(d, key, maxLen) { return !(key in d) || (d[key] is string && d[key].size() <= maxLen); }
+    function optBool(d, key) { return !(key in d) || d[key] is bool; }
+
+    function validUser(d) {
+      return d.keys().hasOnly(['firstName', 'lastName', 'email', 'phone', 'city', 'timezone', 'locale',
+                               'consentAcceptedAt', 'createdAt', 'notificationSettings'])
+        && d.keys().hasAll(['firstName', 'email', 'timezone', 'locale', 'consentAcceptedAt', 'createdAt'])
+        && str(d.firstName, 1, 60)
+        && optStr(d, 'lastName', 60)
+        && str(d.email, 3, 254)
+        && d.email == request.auth.token.email
+        && optStr(d, 'phone', 30)
+        && optStr(d, 'city', 80)
+        && str(d.timezone, 1, 64)
+        && d.locale in ['ru-KZ', 'kk-KZ', 'en-US']
+        && d.consentAcceptedAt is number
+        && d.createdAt is number
+        && (!('notificationSettings' in d) || d.notificationSettings is map);
+    }
+
+    function validPet(d) {
+      return d.keys().hasOnly(['species', 'name', 'breed', 'sex', 'birthDate', 'weight', 'weightUnit', 'color',
+                               'features', 'neutered', 'microchipped', 'microchipNumber', 'city', 'notes',
+                               'photoDataUrl', 'archived', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['species', 'name', 'createdAt', 'updatedAt'])
+        && d.species in ['dog', 'cat']
+        && str(d.name, 1, 60)
+        && optStr(d, 'breed', 80)
+        && (!('sex' in d) || d.sex in ['male', 'female'])
+        && optStr(d, 'birthDate', 10)
+        && (!('weight' in d) || (d.weight is number && d.weight >= 0 && d.weight < 1000))
+        && (!('weightUnit' in d) || d.weightUnit in ['kg', 'g', 'lb'])
+        && optStr(d, 'color', 60)
+        && optStr(d, 'features', 300)
+        && optBool(d, 'neutered')
+        && optBool(d, 'microchipped')
+        && optStr(d, 'microchipNumber', 32)
+        && optStr(d, 'city', 80)
+        && optStr(d, 'notes', 2000)
+        // Фото — сжатое превью в виде data URL. Firebase Storage не используем (требует Blaze).
+        && optStr(d, 'photoDataUrl', 150000)
+        && optBool(d, 'archived')
+        && d.createdAt is number
+        && d.updatedAt is number;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validUser(request.resource.data);
+      allow update: if isOwner(uid)
+        && validUser(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(uid);
+
+      match /pets/{petId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && validPet(request.resource.data);
+        allow update: if isOwner(uid)
+          && validPet(request.resource.data)
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(uid);
+
+        // Записи питомца: только перечисленные коллекции, только владелец.
+        match /{collection}/{docId} {
+          allow read, delete: if isOwner(uid)
+            && collection in ['vaccinations', 'medicalRecords', 'tests', 'medications', 'medicationLogs', 'events', 'documents'];
+          allow create, update: if isOwner(uid)
+            && collection in ['vaccinations', 'medicalRecords', 'tests', 'medications', 'medicationLogs', 'events', 'documents']
+            && request.resource.data.keys().size() <= 40;
+        }
+      }
+    }
+
+    // Всё остальное — запрещено.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
