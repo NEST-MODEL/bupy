@@ -5,17 +5,20 @@ import { ProtectedRoute, PublicOnlyRoute } from '@/components/ProtectedRoute';
 import { Spinner } from '@/components/Spinner';
 import { SetupNeeded } from '@/components/SetupNeeded';
 import { isFirebaseConfigured } from '@/firebase/firebase';
+import { PetsProvider } from '@/features/pets/PetsContext';
 import Landing from '@/pages/Landing';
 
-// Приватные и вторичные экраны грузим лениво (code splitting).
 const Login = lazy(() => import('@/pages/Login'));
 const Register = lazy(() => import('@/pages/Register'));
 const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
+const Onboarding = lazy(() => import('@/pages/Onboarding'));
 const Home = lazy(() => import('@/pages/Home'));
 const Calendar = lazy(() => import('@/pages/Calendar'));
 const Health = lazy(() => import('@/pages/Health'));
 const Help = lazy(() => import('@/pages/Help'));
 const Profile = lazy(() => import('@/pages/Profile'));
+const PetNew = lazy(() => import('@/pages/PetNew'));
+const PetProfile = lazy(() => import('@/pages/PetProfile'));
 const Terms = lazy(() => import('@/pages/Legal').then((m) => ({ default: m.Terms })));
 const Privacy = lazy(() => import('@/pages/Legal').then((m) => ({ default: m.Privacy })));
 
@@ -34,13 +37,16 @@ export default function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/app" element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
+            <Route element={<PetsProvider><AppLayout /></PetsProvider>}>
               <Route index element={<Home />} />
               <Route path="calendar" element={<Calendar />} />
               <Route path="health" element={<Health />} />
               <Route path="help" element={<Help />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="pets/new" element={<PetNew />} />
+              <Route path="pets/:petId" element={<PetProfile />} />
             </Route>
+            <Route path="onboarding" element={<PetsProvider><Onboarding /></PetsProvider>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
