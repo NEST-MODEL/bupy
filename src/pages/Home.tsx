@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, Check, Pill, Plus, Syringe, PawPrint } from 'lucide-react';
+import { CalendarDays, Check, MapPin, Pill, Plus, Syringe, PawPrint } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePets } from '@/features/pets/PetsContext';
 import { EmptyState } from '@/components/EmptyState';
@@ -17,6 +17,7 @@ import {
   addEvent, addMedication, addVaccination,
   listEvents, listMedicationLogsForDate, listMedications, listVaccinations, setMedicationLog, clearMedicationLog,
 } from '@/services/recordsService';
+import { scheduleTodayReminders } from '@/services/reminders';
 import type { CalendarEvent, MedicationLog, Medication, Vaccination } from '@/types';
 
 type QuickForm = 'vaccination' | 'medication' | 'event' | null;
@@ -44,6 +45,27 @@ export default function Home() {
     ]);
     setVaccinations(v); setMedications(m); setEvents(e); setLogs(l);
     setLoading(false);
+
+    const now = new Date();
+    const items = [
+      ...m
+        .filter((med) => med.startDate <= today && (!med.endDate || med.endDate >= today))
+        .flatMap((med) => med.times.map((time) => ({ med, time })))
+        .filter(({ med, time }) => !l.some((log) => log.medicationId === med.id && log.time === time))
+        .map(({ med, time }) => {
+          const [h, min] = time.split(':').map(Number);
+          const at = new Date(now); at.setHours(h, min, 0, 0);
+          return { key: `med-${med.id}-${time}-${today}`, title: med.name, body: `Пора дать лекарство · ${time}`, at: at.getTime() };
+        }),
+      ...e
+        .filter((ev) => ev.date === today && ev.time)
+        .map((ev) => {
+          const [h, min] = ev.time!.split(':').map(Number);
+          const at = new Date(now); at.setHours(h, min, 0, 0);
+          return { key: `evt-${ev.id}-${today}`, title: ev.title, body: `Сегодня · ${ev.time}`, at: at.getTime() };
+        }),
+    ];
+    scheduleTodayReminders(items);
   }
   useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user, currentPet?.id]);
 
@@ -170,10 +192,14 @@ export default function Home() {
 
           <section>
             <h2 className="mb-2 text-sm font-bold text-ink-faint">{t('dashboard.quickActions')}</h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <QuickAction icon={<Syringe size={22} aria-hidden="true" />} label={t('dashboard.addVaccination')} onClick={() => setQuickForm('vaccination')} />
               <QuickAction icon={<Pill size={22} aria-hidden="true" />} label={t('dashboard.addMedication')} onClick={() => setQuickForm('medication')} />
               <QuickAction icon={<CalendarDays size={22} aria-hidden="true" />} label={t('dashboard.addEvent')} onClick={() => setQuickForm('event')} />
+              <Link to="/app/clinics" className="surface flex flex-col items-center gap-2 py-4 text-center text-sm font-semibold text-ink hover:bg-lagoon-50">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-lagoon-50 text-lagoon-600"><MapPin size={22} aria-hidden="true" /></span>
+                {t('clinics.title')}
+              </Link>
             </div>
           </section>
         </div>

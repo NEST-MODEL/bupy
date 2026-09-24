@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Syringe, Pill, Trash2 } from 'lucide-react';
+import { Plus, Syringe, Pill, Trash2, ScanLine } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePets } from '@/features/pets/PetsContext';
 import { EmptyState } from '@/components/EmptyState';
@@ -83,7 +83,10 @@ export default function Health() {
     <>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-3xl font-extrabold tracking-tight">{t('health.title')}</h1>
-        <button type="button" onClick={() => setShowForm(true)} className="btn-quiet"><Plus size={20} aria-hidden="true" />{t('common.add')}</button>
+        <div className="flex items-center gap-1">
+          <Link to="/app/passport" className="btn-quiet"><ScanLine size={20} aria-hidden="true" /></Link>
+          <button type="button" onClick={() => setShowForm(true)} className="btn-quiet"><Plus size={20} aria-hidden="true" />{t('common.add')}</button>
+        </div>
       </div>
 
       <div role="tablist" className="mb-5 grid grid-cols-2 gap-2 rounded-ctl bg-mist p-1">

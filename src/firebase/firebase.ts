@@ -3,7 +3,7 @@ import { getAuth, type Auth } from 'firebase/auth';
 import {
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
+  persistentSingleTabManager,
   type Firestore,
 } from 'firebase/firestore';
 
@@ -27,10 +27,23 @@ let db: Firestore | null = null;
 if (isFirebaseConfigured) {
   app = initializeApp(config);
   auth = getAuth(app); // сессия хранится в IndexedDB/localStorage — вход сохраняется между запусками
-  // Офлайн-кеш Firestore: показывает уже загруженные данные без сети, изменения синхронизируются позже.
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-  });
+
+  // ВАЖНО: experimentalAutoDetectLongPolling заставляет Firestore сразу проверить, доступен ли
+  // обычный потоковый транспорт (gRPC/WebChannel), и если сеть его режет или сильно тормозит
+  // (так бывает у части провайдеров и в некоторых сетях/VPN в СНГ) — переключиться на long polling
+  // без многоминутного зависания. Без этой опции клиент может «висеть» по 5–10 минут перед каждым
+  // запросом, пока сам не поймёт, что нужно переключиться.
+  try {
+    // Офлайн-кеш: показывает уже загруженные данные без сети, изменения синхронизируются позже.
+    // persistentSingleTabManager проще и надёжнее multiTab — не блокируется другой открытой вкладкой/PWA.
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({ forceOwnership: false }) }),
+      experimentalAutoDetectLongPolling: true,
+    });
+  } catch {
+    // Если IndexedDB недоступен (приватный режим, ограничения браузера) — работаем без офлайн-кеша.
+    db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+  }
 }
 
 export function getFirebaseAuth(): Auth {

@@ -16,6 +16,8 @@ const Home = lazy(() => import('@/pages/Home'));
 const Calendar = lazy(() => import('@/pages/Calendar'));
 const Health = lazy(() => import('@/pages/Health'));
 const Help = lazy(() => import('@/pages/Help'));
+const Clinics = lazy(() => import('@/pages/Clinics'));
+const PassportScan = lazy(() => import('@/pages/PassportScan'));
 const Profile = lazy(() => import('@/pages/Profile'));
 const PetNew = lazy(() => import('@/pages/PetNew'));
 const PetProfile = lazy(() => import('@/pages/PetProfile'));
@@ -42,6 +44,8 @@ export default function App() {
               <Route path="calendar" element={<Calendar />} />
               <Route path="health" element={<Health />} />
               <Route path="help" element={<Help />} />
+              <Route path="clinics" element={<Clinics />} />
+              <Route path="passport" element={<PassportScan />} />
               <Route path="profile" element={<Profile />} />
               <Route path="pets/new" element={<PetNew />} />
               <Route path="pets/:petId" element={<PetProfile />} />

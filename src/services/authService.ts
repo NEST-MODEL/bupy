@@ -1,11 +1,12 @@
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
 } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { getDb, getFirebaseAuth } from '@/firebase/firebase';
 import type { UserProfile } from '@/types';
 
@@ -46,4 +47,17 @@ export async function logout(): Promise<void> {
 
 export async function requestPasswordReset(email: string): Promise<void> {
   await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
+}
+
+/**
+ * Удаляет сам аккаунт (Firebase Auth) и его профильный документ users/{uid}.
+ * Питомцев и их подколлекции НЕ удаляет каскадно (Firestore этого не делает автоматически) —
+ * пользователь предупреждён об этом в интерфейсе перед подтверждением.
+ */
+export async function deleteAccount(): Promise<void> {
+  const auth = getFirebaseAuth();
+  const user = auth.currentUser;
+  if (!user) return;
+  await deleteDoc(doc(getDb(), 'users', user.uid)).catch(() => { /* документ мог не существовать */ });
+  await deleteUser(user);
 }
