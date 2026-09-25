@@ -52,10 +52,22 @@ export function parsePassportText(raw: string): ParsedPassport {
   // Порода: строка с ключевым словом «порода» / «breed» — берём остаток строки.
   for (const line of lines) {
     const m = line.match(/(?:порода|breed)\s*[:\-]?\s*(.+)/i);
-    if (m && m[1].trim().length > 1) { result.breed = m[1].trim(); break; }
+    if (m && m[1].trim().length > 1) {
+      const candidate = m[1].trim();
+      if (looksLikeRealText(candidate)) { result.breed = candidate; break; }
+    }
   }
 
   // Вакцинации: строки, где есть известное название вакцины ИЛИ слово «вакцин», плюс дата в этой же строке.
+  // Дополнительно отсекаем откровенный мусор (шум OCR): строка-кандидат должна содержать
+  // разумную долю буквенных символов и хотя бы одно «настоящее» слово из 3+ букв — иначе
+  // сгенерированное «название вакцины» будет бессмысленным набором символов.
+  function looksLikeRealText(s: string): boolean {
+    const letters = (s.match(/\p{L}/gu) ?? []).length;
+    if (s.length === 0 || letters / s.length < 0.5) return false;
+    return /\p{L}{3,}/u.test(s);
+  }
+
   for (const line of lines) {
     const dateMatch = [...line.matchAll(DATE_RE)][0];
     if (!dateMatch) continue;
@@ -68,7 +80,7 @@ export function parsePassportText(raw: string): ParsedPassport {
       const name = knownVaccine
         ? knownVaccine.charAt(0).toUpperCase() + knownVaccine.slice(1)
         : line.replace(DATE_RE, '').replace(/[:;,.\-]+/g, ' ').trim().slice(0, 60) || 'Вакцинация';
-      result.vaccinations.push({ name, date: iso });
+      if (looksLikeRealText(name)) result.vaccinations.push({ name, date: iso });
     }
   }
 

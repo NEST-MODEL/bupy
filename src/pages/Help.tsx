@@ -2,23 +2,27 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { TriangleAlert, Check, X, Sparkles, Loader2 } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
+import { usePets } from '@/features/pets/PetsContext';
 import { Modal } from '@/components/Modal';
 import { HelpTopicIcon } from '@/components/HelpTopicIcon';
 import { useI18n } from '@/i18n';
 import { HELP_TOPICS, type HelpTopic } from '@/data/bupyHelp';
 import { getGeminiKey } from '@/services/geminiKeyStorage';
-import { askBupyHelp, GeminiError } from '@/services/geminiService';
+import { askBupyHelp, GeminiError, type PetContext } from '@/services/geminiService';
+import { GEMINI_DEFAULT_KEY } from '@/config';
+import { ageFromBirthDate } from '@/utils/date';
 
 export default function Help() {
   const { t } = useI18n();
   const { user } = useAuth();
+  const { currentPet } = usePets();
   const [openTopic, setOpenTopic] = useState<HelpTopic | null>(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  const apiKey = user ? getGeminiKey(user.uid) : null;
+  const apiKey = (user ? getGeminiKey(user.uid) : null) ?? GEMINI_DEFAULT_KEY ?? null;
 
   async function handleAsk(e: FormEvent) {
     e.preventDefault();
@@ -27,7 +31,17 @@ export default function Help() {
     setAiError(null);
     setAnswer(null);
     try {
-      const res = await askBupyHelp(apiKey, question.trim());
+      const petContext: PetContext | undefined = currentPet ? {
+        species: currentPet.species,
+        name: currentPet.name,
+        ...(currentPet.breed ? { breed: currentPet.breed } : {}),
+        ...(currentPet.sex ? { sex: currentPet.sex } : {}),
+        ...(ageFromBirthDate(currentPet.birthDate) ? { ageText: ageFromBirthDate(currentPet.birthDate)! } : {}),
+        ...(currentPet.weight != null ? { weightText: `${currentPet.weight} ${currentPet.weightUnit ?? 'kg'}` } : {}),
+        ...(currentPet.neutered ? { neutered: true } : {}),
+        ...(currentPet.features ? { features: currentPet.features } : {}),
+      } : undefined;
+      const res = await askBupyHelp(apiKey, question.trim(), petContext);
       setAnswer(res);
     } catch (err) {
       if (err instanceof GeminiError && err.kind === 'key') setAiError(t('help.ai.error.key'));

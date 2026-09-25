@@ -27,7 +27,14 @@ function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: num
 
 export async function geocodeCity(query: string): Promise<GeoPoint | null> {
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new Error('geocode failed');
   const data: { lat: string; lon: string; display_name: string }[] = await res.json();
   if (!data.length) return null;
@@ -44,11 +51,19 @@ interface OverpassElement {
 
 export async function findVetClinics(center: { lat: number; lon: number }, radiusMeters = 8000): Promise<Clinic[]> {
   const query = `[out:json][timeout:15];(node["amenity"="veterinary"](around:${radiusMeters},${center.lat},${center.lon});way["amenity"="veterinary"](around:${radiusMeters},${center.lat},${center.lon}););out center tags;`;
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: query,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  let res: Response;
+  try {
+    res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: query,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new Error('overpass failed');
   const data: { elements: OverpassElement[] } = await res.json();
 

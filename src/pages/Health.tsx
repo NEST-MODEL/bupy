@@ -11,6 +11,7 @@ import { VaccinationForm } from '@/features/health/VaccinationForm';
 import { MedicationForm } from '@/features/health/MedicationForm';
 import { useI18n } from '@/i18n';
 import { formatDateHuman, daysDiffFromToday, todayStr } from '@/utils/date';
+import { LoadError } from '@/components/LoadError';
 import {
   addVaccination, addMedication, deleteVaccination, deleteMedication,
   listVaccinations, listMedications, type VaccinationInput, type MedicationInput,
@@ -27,16 +28,23 @@ export default function Health() {
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [toDelete, setToDelete] = useState<{ kind: Tab; id: string } | null>(null);
 
   async function load() {
     if (!user || !currentPet) return;
     setLoading(true);
-    const [v, m] = await Promise.all([listVaccinations(user.uid, currentPet.id), listMedications(user.uid, currentPet.id)]);
-    setVaccinations(v);
-    setMedications(m);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const [v, m] = await Promise.all([listVaccinations(user.uid, currentPet.id), listMedications(user.uid, currentPet.id)]);
+      setVaccinations(v);
+      setMedications(m);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user, currentPet?.id]);
@@ -100,7 +108,9 @@ export default function Health() {
         </button>
       </div>
 
-      {loading ? <Spinner /> : tab === 'vaccinations' ? (
+      {loading ? <Spinner /> : loadError ? (
+        <LoadError onRetry={load} />
+      ) : tab === 'vaccinations' ? (
         vaccinations.length === 0 ? (
           <EmptyState icon={<Syringe size={26} />} title={t('vaccination.empty')} text=""
             action={<button type="button" onClick={() => setShowForm(true)} className="btn-primary">{t('vaccination.add')}</button>} />

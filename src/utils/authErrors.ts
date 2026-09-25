@@ -1,7 +1,9 @@
 import type { TKey } from '@/i18n/ru';
+import { TimeoutError } from '@/utils/withTimeout';
 
 /** Преобразует код ошибки Firebase Auth в ключ i18n. Технические сообщения пользователю не показываем. */
 export function authErrorKey(err: unknown): TKey {
+  if (err instanceof TimeoutError) return 'error.network';
   const code = typeof err === 'object' && err && 'code' in err ? String((err as { code: unknown }).code) : '';
   switch (code) {
     case 'auth/invalid-credential':

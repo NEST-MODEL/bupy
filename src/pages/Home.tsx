@@ -4,6 +4,7 @@ import { CalendarDays, Check, MapPin, Pill, Plus, Syringe, PawPrint } from 'luci
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePets } from '@/features/pets/PetsContext';
 import { EmptyState } from '@/components/EmptyState';
+import { LoadError } from '@/components/LoadError';
 import { Spinner } from '@/components/Spinner';
 import { PetSwitcher } from '@/components/PetSwitcher';
 import { EventTypeIcon } from '@/components/EventTypeIcon';
@@ -25,8 +26,9 @@ type QuickForm = 'vaccination' | 'medication' | 'event' | null;
 export default function Home() {
   const { t } = useI18n();
   const { user } = useAuth();
-  const { currentPet, loading: petsLoading } = usePets();
+  const { currentPet, loading: petsLoading, error: petsError, refresh } = usePets();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -37,12 +39,20 @@ export default function Home() {
   async function load() {
     if (!user || !currentPet) return;
     setLoading(true);
-    const [v, m, e, l] = await Promise.all([
-      listVaccinations(user.uid, currentPet.id),
-      listMedications(user.uid, currentPet.id),
-      listEvents(user.uid, currentPet.id),
-      listMedicationLogsForDate(user.uid, currentPet.id, today),
-    ]);
+    setLoadError(false);
+    let v: Vaccination[] = [], m: Medication[] = [], e: CalendarEvent[] = [], l: MedicationLog[] = [];
+    try {
+      [v, m, e, l] = await Promise.all([
+        listVaccinations(user.uid, currentPet.id),
+        listMedications(user.uid, currentPet.id),
+        listEvents(user.uid, currentPet.id),
+        listMedicationLogsForDate(user.uid, currentPet.id, today),
+      ]);
+    } catch {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
     setVaccinations(v); setMedications(m); setEvents(e); setLogs(l);
     setLoading(false);
 
@@ -70,6 +80,9 @@ export default function Home() {
   useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user, currentPet?.id]);
 
   if (petsLoading) return <Spinner />;
+  if (petsError) {
+    return <LoadError onRetry={refresh} />;
+  }
   if (!currentPet) {
     return (
       <>
@@ -134,7 +147,9 @@ export default function Home() {
         </p>
       )}
 
-      {loading ? <Spinner /> : (
+      {loading ? <Spinner /> : loadError ? (
+        <LoadError onRetry={load} />
+      ) : (
         <div className="flex flex-col gap-6">
           <section>
             <h2 className="mb-2 text-sm font-bold text-ink-faint">{t('dashboard.today')}</h2>

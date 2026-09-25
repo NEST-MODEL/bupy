@@ -209,6 +209,7 @@ export const ru = {
   'common.remove': 'Убрать',
   'common.saveError': 'Не удалось сохранить. Проверьте подключение к интернету.',
   'common.confirmDeleteTitle': 'Удалить запись?',
+  'common.retry': 'Повторить',
 
   'help.topics.title': 'Первая помощь по темам',
   'help.now': 'Что сделать сейчас',
@@ -230,6 +231,7 @@ export const ru = {
 
   'profile.ai.title': 'ИИ-помощник Bupy Help',
   'profile.ai.text': 'Bupy Help может отвечать на произвольные вопросы о первой помощи с помощью бесплатного Gemini API. Ключ хранится только в этом браузере и никуда, кроме Google, не отправляется.',
+  'profile.ai.text.defaultActive': 'Bupy Help уже подключён к бесплатному ИИ (Gemini) — можно сразу задавать вопросы в разделе «Помощник». Если хотите использовать свой личный ключ вместо общего — вставьте его ниже, он будет использоваться вместо общего.',
   'profile.ai.key': 'Ваш ключ Gemini API',
   'profile.ai.key.placeholder': 'Вставьте ключ (начинается с AIza или AQ.)',
   'profile.ai.save': 'Сохранить ключ',
@@ -274,6 +276,7 @@ export const ru = {
   'passport.discardPhoto': 'Удалить фото',
   'passport.rawText': 'Распознанный текст целиком',
   'passport.error': 'Не удалось обработать фото. Попробуйте другое изображение получше освещённое.',
+  'passport.aiUsed': 'Данные распознаны с помощью ИИ. Всё равно рекомендуем проверить перед сохранением.',
 
   'reminders.title': 'Напоминания',
   'reminders.text': 'Bupy может показывать уведомления о лекарствах и событиях, пока приложение открыто в браузере (на телефоне — установленное на экран «Домой»). Фоновые push-уведомления без сервера технически невозможны бесплатно, поэтому держите Bupy открытым или проверяйте раздел «Главная» в течение дня.',
@@ -299,6 +302,17 @@ export const ru = {
   'report.medications': 'Лекарства',
   'report.events': 'События',
   'report.empty': 'Нет данных',
+
+  'install.title': 'Установить на телефон',
+  'install.text': 'Bupy можно поставить на главный экран как обычное приложение — без App Store и Google Play.',
+  'install.ios.title': 'iPhone / iPad (только в Safari)',
+  'install.ios.step1': 'Откройте Bupy в браузере Safari (не Chrome — на iOS так работает только Safari).',
+  'install.ios.step2': 'Нажмите кнопку «Поделиться» (квадрат со стрелкой вверх) внизу экрана.',
+  'install.ios.step3': 'Выберите «На экран «Домой»» и нажмите «Добавить».',
+  'install.android.title': 'Android (Chrome)',
+  'install.android.step1': 'Откройте Bupy в Chrome.',
+  'install.android.step2': 'Нажмите на меню (три точки) в правом верхнем углу.',
+  'install.android.step3': 'Выберите «Установить приложение» или «Добавить на главный экран».',
 } as const;
 
 export type TKey = keyof typeof ru;

@@ -11,6 +11,7 @@ import { EventTypeIcon } from '@/components/EventTypeIcon';
 import { EventForm } from '@/features/calendar/EventForm';
 import { useI18n } from '@/i18n';
 import { formatDateHuman, todayStr } from '@/utils/date';
+import { LoadError } from '@/components/LoadError';
 import { addEvent, deleteEvent, listEvents, type EventInput } from '@/services/recordsService';
 import type { CalendarEvent } from '@/types';
 
@@ -20,14 +21,21 @@ export default function Calendar() {
   const { currentPet, loading: petsLoading } = usePets();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [toDelete, setToDelete] = useState<string | null>(null);
 
   async function load() {
     if (!user || !currentPet) return;
     setLoading(true);
-    setEvents(await listEvents(user.uid, currentPet.id));
-    setLoading(false);
+    setLoadError(false);
+    try {
+      setEvents(await listEvents(user.uid, currentPet.id));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user, currentPet?.id]);
 
@@ -66,7 +74,9 @@ export default function Calendar() {
         <button type="button" onClick={() => setShowForm(true)} className="btn-quiet"><Plus size={20} aria-hidden="true" />{t('common.add')}</button>
       </div>
 
-      {loading ? <Spinner /> : events.length === 0 ? (
+      {loading ? <Spinner /> : loadError ? (
+        <LoadError onRetry={load} />
+      ) : events.length === 0 ? (
         <EmptyState icon={<CalendarDays size={26} />} title={t('calendar.empty.title')} text={t('calendar.empty.text')}
           action={<button type="button" onClick={() => setShowForm(true)} className="btn-primary">{t('calendar.add')}</button>} />
       ) : (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, ExternalLink, Bell, Download, FileText, Trash2 } from 'lucide-react';
+import { LogOut, ExternalLink, Bell, Download, FileText, Trash2, Smartphone } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePets } from '@/features/pets/PetsContext';
 import { useI18n, LOCALES, type Locale } from '@/i18n';
@@ -8,6 +8,7 @@ import { FormError } from '@/components/FormError';
 import { Select } from '@/components/Select';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { getGeminiKey, setGeminiKey, clearGeminiKey } from '@/services/geminiKeyStorage';
+import { GEMINI_DEFAULT_KEY } from '@/config';
 import { remindersSupported, remindersEnabled, enableReminders, disableReminders, notificationPermission } from '@/services/reminders';
 import { fetchPetExportData, downloadJson, openReport } from '@/services/exportService';
 
@@ -25,6 +26,7 @@ export default function Profile() {
 
   const [exportPetId, setExportPetId] = useState(activePets[0]?.id ?? '');
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -67,14 +69,20 @@ export default function Profile() {
     const pet = activePets.find((p) => p.id === exportPetId);
     if (!pet) return;
     setExporting(true);
-    try { downloadJson(await fetchPetExportData(user.uid, pet)); } finally { setExporting(false); }
+    setExportError(null);
+    try { downloadJson(await fetchPetExportData(user.uid, pet)); }
+    catch { setExportError(t('error.load')); }
+    finally { setExporting(false); }
   }
   async function onOpenReport() {
     if (!user) return;
     const pet = activePets.find((p) => p.id === exportPetId);
     if (!pet) return;
     setExporting(true);
-    try { openReport(await fetchPetExportData(user.uid, pet)); } finally { setExporting(false); }
+    setExportError(null);
+    try { openReport(await fetchPetExportData(user.uid, pet)); }
+    catch { setExportError(t('error.load')); }
+    finally { setExporting(false); }
   }
 
   async function onDeleteAccount() {
@@ -108,7 +116,9 @@ export default function Profile() {
       {/* ИИ-помощник */}
       <div className="surface mt-4 p-5">
         <p className="font-bold">{t('profile.ai.title')}</p>
-        <p className="mt-1 text-sm text-ink-soft">{t('profile.ai.text')}</p>
+        <p className="mt-1 text-sm text-ink-soft">
+          {GEMINI_DEFAULT_KEY ? t('profile.ai.text.defaultActive') : t('profile.ai.text')}
+        </p>
         <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="btn-quiet -ml-3 mt-2">
           {t('profile.ai.getKey')} <ExternalLink size={16} aria-hidden="true" />
         </a>
@@ -121,6 +131,28 @@ export default function Profile() {
           {keyInput && <button type="button" onClick={onRemoveKey} className="btn-quiet">{t('profile.ai.remove')}</button>}
         </div>
         {keySaved && <p role="status" className="mt-2 text-sm text-lagoon-700">{t('profile.ai.saved')}</p>}
+      </div>
+
+      {/* Установка на телефон */}
+      <div className="surface mt-4 p-5">
+        <p className="flex items-center gap-2 font-bold"><Smartphone size={18} aria-hidden="true" /> {t('install.title')}</p>
+        <p className="mt-1 text-sm text-ink-soft">{t('install.text')}</p>
+        <div className="mt-3">
+          <p className="text-sm font-bold text-ink">{t('install.ios.title')}</p>
+          <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm text-ink-soft">
+            <li>{t('install.ios.step1')}</li>
+            <li>{t('install.ios.step2')}</li>
+            <li>{t('install.ios.step3')}</li>
+          </ol>
+        </div>
+        <div className="mt-4">
+          <p className="text-sm font-bold text-ink">{t('install.android.title')}</p>
+          <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm text-ink-soft">
+            <li>{t('install.android.step1')}</li>
+            <li>{t('install.android.step2')}</li>
+            <li>{t('install.android.step3')}</li>
+          </ol>
+        </div>
       </div>
 
       {/* Напоминания */}
@@ -148,6 +180,7 @@ export default function Profile() {
             <button type="button" onClick={onExportJson} disabled={exporting} className="btn-secondary"><Download size={18} aria-hidden="true" />{t('export.json')}</button>
             <button type="button" onClick={onOpenReport} disabled={exporting} className="btn-secondary"><FileText size={18} aria-hidden="true" />{t('export.report')}</button>
           </div>
+          {exportError && <p role="alert" className="mt-2 text-sm text-berry-700">{exportError}</p>}
         </div>
       )}
 

@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth';
 import { deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { getDb, getFirebaseAuth } from '@/firebase/firebase';
+import { withTimeout } from '@/utils/withTimeout';
 import type { UserProfile } from '@/types';
 
 export interface RegisterInput {
@@ -20,9 +21,9 @@ export interface RegisterInput {
 
 export async function register(input: RegisterInput): Promise<void> {
   const auth = getFirebaseAuth();
-  const cred = await createUserWithEmailAndPassword(auth, input.email.trim(), input.password);
+  const cred = await withTimeout(createUserWithEmailAndPassword(auth, input.email.trim(), input.password));
   const displayName = [input.firstName.trim(), input.lastName?.trim()].filter(Boolean).join(' ');
-  await updateProfile(cred.user, { displayName });
+  await withTimeout(updateProfile(cred.user, { displayName }));
 
   const now = Date.now();
   const profile: UserProfile = {
@@ -34,19 +35,19 @@ export async function register(input: RegisterInput): Promise<void> {
     createdAt: now,
     ...(input.lastName?.trim() ? { lastName: input.lastName.trim() } : {}),
   };
-  await setDoc(doc(getDb(), 'users', cred.user.uid), profile);
+  await withTimeout(setDoc(doc(getDb(), 'users', cred.user.uid), profile));
 }
 
 export async function login(email: string, password: string): Promise<void> {
-  await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+  await withTimeout(signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password));
 }
 
 export async function logout(): Promise<void> {
-  await signOut(getFirebaseAuth());
+  await withTimeout(signOut(getFirebaseAuth()));
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
+  await withTimeout(sendPasswordResetEmail(getFirebaseAuth(), email.trim()));
 }
 
 /**
@@ -58,6 +59,6 @@ export async function deleteAccount(): Promise<void> {
   const auth = getFirebaseAuth();
   const user = auth.currentUser;
   if (!user) return;
-  await deleteDoc(doc(getDb(), 'users', user.uid)).catch(() => { /* документ мог не существовать */ });
-  await deleteUser(user);
+  await withTimeout(deleteDoc(doc(getDb(), 'users', user.uid))).catch(() => { /* документ мог не существовать */ });
+  await withTimeout(deleteUser(user));
 }

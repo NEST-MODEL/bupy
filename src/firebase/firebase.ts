@@ -1,11 +1,6 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
-import {
-  initializeFirestore,
-  persistentLocalCache,
-  persistentSingleTabManager,
-  type Firestore,
-} from 'firebase/firestore';
+import { initializeFirestore, type Firestore } from 'firebase/firestore';
 
 // Это публичная клиентская конфигурация Firebase (не секрет).
 // Доступ к данным защищён firestore.rules. Service account сюда не добавляем.
@@ -31,19 +26,14 @@ if (isFirebaseConfigured) {
   // ВАЖНО: experimentalAutoDetectLongPolling заставляет Firestore сразу проверить, доступен ли
   // обычный потоковый транспорт (gRPC/WebChannel), и если сеть его режет или сильно тормозит
   // (так бывает у части провайдеров и в некоторых сетях/VPN в СНГ) — переключиться на long polling
-  // без многоминутного зависания. Без этой опции клиент может «висеть» по 5–10 минут перед каждым
-  // запросом, пока сам не поймёт, что нужно переключиться.
-  try {
-    // Офлайн-кеш: показывает уже загруженные данные без сети, изменения синхронизируются позже.
-    // persistentSingleTabManager проще и надёжнее multiTab — не блокируется другой открытой вкладкой/PWA.
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({ forceOwnership: false }) }),
-      experimentalAutoDetectLongPolling: true,
-    });
-  } catch {
-    // Если IndexedDB недоступен (приватный режим, ограничения браузера) — работаем без офлайн-кеша.
-    db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
-  }
+  // без многоминутного зависания.
+  //
+  // Офлайн-персистентность (persistentLocalCache) намеренно НЕ используется: она хранит данные
+  // в IndexedDB и требует «договариваться» между вкладками/установленным PWA за право на этот
+  // кеш — если открыто одновременно и приложение на экране, и вкладка в браузере, это может
+  // приводить к зависаниям само по себе. Простой кеш в памяти надёжнее и по-прежнему позволяет
+  // Firestore ставить запись в очередь при кратковременном пропадании сети в рамках одной сессии.
+  db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 }
 
 export function getFirebaseAuth(): Auth {

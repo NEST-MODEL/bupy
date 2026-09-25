@@ -7,6 +7,11 @@ import { TextField } from '@/components/TextField';
 import { FormError } from '@/components/FormError';
 import { useI18n } from '@/i18n';
 import { recognizePassportText } from '@/services/ocrService';
+import { extractPassportData } from '@/services/geminiService';
+import { getGeminiKey } from '@/services/geminiKeyStorage';
+import { GEMINI_DEFAULT_KEY } from '@/config';
+import { compressImageToDataUrl } from '@/utils/image';
+import { withTimeout } from '@/utils/withTimeout';
 import { parsePassportText, type ParsedVaccination } from '@/utils/passportParser';
 import { updatePet } from '@/services/petService';
 import { addVaccination } from '@/services/recordsService';
@@ -31,6 +36,7 @@ export default function PassportScan() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [usedAi, setUsedAi] = useState(false);
 
   if (!currentPet) {
     return <p className="text-ink-soft">{t('error.load')}</p>;
@@ -43,8 +49,33 @@ export default function PassportScan() {
     setPhoto(URL.createObjectURL(file));
     setStage('recognizing');
     setProgress(0);
+    setUsedAi(false);
+    setRawText('');
+
+    // Если у пользователя подключён Gemini (свой ключ или общий) — сначала пробуем его:
+    // распознавание фото целиком заметно надёжнее на настоящих паспортах (печати, фото питомца,
+    // мелкий текст), чем локальный построчный OCR. Ключ не придумывает данные — см. промпт в geminiService.
+    const apiKey = (user ? getGeminiKey(user.uid) : null) ?? GEMINI_DEFAULT_KEY ?? null;
+    if (apiKey) {
+      try {
+        const dataUrl = await compressImageToDataUrl(file, 1280, 0.85);
+        const base64 = dataUrl.split(',')[1] ?? '';
+        const extracted = await extractPassportData(apiKey, base64, 'image/jpeg');
+        setBreed(extracted.breed ?? '');
+        setBirthDate(extracted.birthDate ?? '');
+        setMicrochip(extracted.microchipNumber ?? '');
+        setVaccinations(extracted.vaccinations);
+        setUsedAi(true);
+        setStage('review');
+        return;
+      } catch {
+        // Тихо откатываемся на локальный OCR ниже — не показываем пользователю ошибку ИИ,
+        // просто пробуем запасной вариант.
+      }
+    }
+
     try {
-      const text = await recognizePassportText(file, setProgress);
+      const text = await withTimeout(recognizePassportText(file, setProgress), 90_000);
       setRawText(text);
       const parsed = parsePassportText(text);
       setBreed(parsed.breed ?? '');
@@ -165,10 +196,14 @@ export default function PassportScan() {
             </div>
           )}
 
-          <details className="surface p-4 text-sm">
-            <summary className="cursor-pointer font-semibold text-ink-soft">{t('passport.rawText')}</summary>
-            <pre className="mt-2 whitespace-pre-wrap break-words text-ink-faint">{rawText}</pre>
-          </details>
+          {usedAi ? (
+            <p className="text-sm text-ink-faint">{t('passport.aiUsed')}</p>
+          ) : (
+            <details className="surface p-4 text-sm">
+              <summary className="cursor-pointer font-semibold text-ink-soft">{t('passport.rawText')}</summary>
+              <pre className="mt-2 whitespace-pre-wrap break-words text-ink-faint">{rawText}</pre>
+            </details>
+          )}
 
           {saved && <p role="status" className="text-lagoon-700">{t('passport.saved')}</p>}
           <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">{t('passport.save')}</button>
